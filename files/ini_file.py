@@ -58,6 +58,7 @@ options:
     description:
       - Create a backup file including the timestamp information so you can get
         the original file back if you somehow clobbered it incorrectly.
+        The absolute path of this backup file is returned if change is made.
     required: false
     default: "no"
     choices: [ "yes", "no" ]
@@ -144,17 +145,17 @@ def do_ini(module, filename, section=None, option=None, value=None, state='prese
                 cp.set(section, option, value)
                 changed = True
 
+    backup_fpath = None
     if changed:
         if backup:
-            module.backup_local(filename)
-
+            backup_fpath = module.backup_local(filename)
         try:
             f = open(filename, 'w')
             cp.write(f)
         except:
             module.fail_json(msg="Can't creat %s" % filename)
 
-    return changed
+    return changed, backup_fpath
 
 # ==============================================================
 # identity
@@ -195,13 +196,18 @@ def main():
     state = module.params['state']
     backup = module.params['backup']
 
-    changed = do_ini(module, dest, section, option, value, state, backup)
+    changed, backup = do_ini(module, dest,
+        section, option, value, state, backup)
 
     file_args = module.load_file_common_arguments(module.params)
     changed = module.set_fs_attributes_if_different(file_args, changed)
 
     # Mission complete
-    module.exit_json(dest=dest, changed=changed, msg="OK")
+    if changed and backup:
+        module.exit_json(dest=dest, changed=changed,
+            backup=backup, msg="OK")
+    else:
+        module.exit_json(dest=dest, changed=changed, msg="OK")
 
 # import module snippets
 from ansible.module_utils.basic import *
