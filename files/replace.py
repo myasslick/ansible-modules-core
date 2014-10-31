@@ -61,6 +61,7 @@ options:
     description:
       - Create a backup file including the timestamp information so you can
         get the original file back if you somehow clobbered it incorrectly.
+        The absolute path of this backup file is returned if change is made.
   validate:
     required: false
     description:
@@ -151,11 +152,15 @@ def main():
 
     if changed and not module.check_mode:
         if params['backup'] and os.path.exists(dest):
-            module.backup_local(dest)
+            backup_fpath = module.backup_local(dest)
         write_changes(module, result[0], dest)
 
     msg, changed = check_file_attrs(module, changed, msg)
-    module.exit_json(changed=changed, msg=msg)
+    if changed and params['backup']:
+        module.exit_json(changed=changed, msg=msg,
+            backup=backup_fpath)
+    else:
+        module.exit_json(changed=changed, msg=msg)
 
 # this is magic, see lib/ansible/module_common.py
 #<<INCLUDE_ANSIBLE_MODULE_COMMON>>
